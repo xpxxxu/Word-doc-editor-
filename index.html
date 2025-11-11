@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PhoneWordEditor</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>PhoneWordEditor</h1>
+      <p class="muted">Mobile-first, open-source Tiptap editor — import .docx, edit, export .docx</p>
+    </header>
+
+    <div class="controls">
+      <input id="fileInput" type="file" accept=".docx,.html,.txt" style="display:none" />
+      <button id="openBtn">Open file</button>
+      <button id="saveDocx" class="primary">Export .docx</button>
+      <button id="saveHtml">Export .html</button>
+      <button id="clearBtn">Clear</button>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+      <button data-cmd="bold">B</button>
+      <button data-cmd="italic">I</button>
+      <button data-cmd="underline">U</button>
+      <button data-cmd="h1">H1</button>
+      <button data-cmd="h2">H2</button>
+      <button data-cmd="bullet">• List</button>
+      <button data-cmd="ordered">1. List</button>
+      <button data-cmd="insertTable">Table</button>
+      <button data-cmd="image">Image</button>
+      <button data-cmd="link">Link</button>
+    </div>
+
+    <div id="editor" class="editor"></div>
+
+    <footer class="info">
+      <small>Note: DOCX import/export works best for common document features. Complex styles may lose fidelity.</small>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
