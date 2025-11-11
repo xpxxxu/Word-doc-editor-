@@ -1,40 +1,239 @@
 <!doctype html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PhoneWordEditor</title>
-  <link rel="stylesheet" href="/src/styles.css">
+  <title>محرر كلمة - Phone Word Editor</title>
+  <meta name="description" content="محرر نصي شبيه Word يفتح docx ويصدر docx - يعمل على الجوال" />
+  <link rel="shortcut icon" href="data:;base64,iVBORw0KGgo=">
+
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#071027; --accent:#06b6d4; --muted:#9ca3af;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:linear-gradient(180deg,#061029,#021024); color:#e6eef6}
+    .container{max-width:1100px;margin:12px auto;padding:12px}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between}
+    header h1{margin:0;font-size:18px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button, .file-btn {background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:10px 12px;border-radius:10px;font-size:15px}
+    .primary{background:var(--accent);color:#021; border:0}
+    .editor-wrap{margin-top:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+    .footer-note{color:var(--muted);margin-top:8px;font-size:13px}
+    .big{padding:14px 16px;font-size:16px}
+    input[type=file]{display:none}
+    .mobile-hint{display:none;color:var(--muted);font-size:13px;margin-top:6px}
+    @media (max-width:800px){.mobile-hint{display:block}}
+    /* TinyMCE content area should appear LTR for proper typing Arabic managed by editor direction */
+    .tox .tox-editor-container{border-radius:8px}
+    .topbar{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+
+  <!-- TinyMCE (no API key for evaluation) -->
+  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
+  <!-- Mammoth (docx -> HTML) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.16/mammoth.browser.min.js"></script>
+
+  <!-- html-docx-js (HTML -> DOCX) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.3.1/html-docx.js"></script>
+
+  <!-- FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-  <div class="app">
+  <div class="container" role="main">
     <header>
-      <h1>PhoneWordEditor</h1>
-      <p class="muted">Mobile-first, open-source Tiptap editor — import .docx, edit, export .docx</p>
+      <div>
+        <h1>محرر كلمة — شبيه Word (جوال)</h1>
+        <div class="footer-note">افتح ملف .docx، حرّر نصك، ثم احفظ أو صدّر كـ .docx أو .html</div>
+      </div>
+
+      <div style="text-align:left">
+        <div style="font-size:13px;color:var(--muted)">مجهز للاستخدام الفوري — انسخ الملف إلى GitHub Pages</div>
+      </div>
     </header>
 
-    <div class="controls">
-      <input id="fileInput" type="file" accept=".docx,.html,.txt" style="display:none" />
-      <button id="openBtn">Open file</button>
-      <button id="saveDocx" class="primary">Export .docx</button>
-      <button id="saveHtml">Export .html</button>
-      <button id="clearBtn">Clear</button>
+    <div class="controls topbar" style="margin-top:14px;">
+      <label class="file-btn big" title="فتح ملف">
+        افتح ملف
+        <input id="fileInput" type="file" accept=".docx,.html,.htm,.txt" />
+      </label>
+
+      <button id="saveHtmlBtn" class="big">حفظ كـ HTML</button>
+      <button id="exportDocxBtn" class="big primary">تصدير كـ DOCX</button>
+      <button id="clearBtn" class="big">جديد (فراغ)</button>
+      <div style="min-width:8px"></div>
+      <button id="helpBtn" class="big">مساعدة</button>
     </div>
 
-    <div class="toolbar" id="toolbar">
-      <button data-cmd="bold">B</button>
-      <button data-cmd="italic">I</button>
-      <button data-cmd="underline">U</button>
-      <button data-cmd="h1">H1</button>
-      <button data-cmd="h2">H2</button>
-      <button data-cmd="bullet">• List</button>
-      <button data-cmd="ordered">1. List</button>
-      <button data-cmd="insertTable">Table</button>
-      <button data-cmd="image">Image</button>
-      <button data-cmd="link">Link</button>
+    <div class="editor-wrap" style="margin-top:12px">
+      <!-- TinyMCE textarea -->
+      <textarea id="editor" style="height:60vh">ابدأ الكتابة هنا — يمكنك فتح ملف .docx أو لصق المحتوى.</textarea>
     </div>
 
-    <div id="editor" class="editor"></div>
+    <div class="mobile-hint">إذا فتحت الملف من الهاتف: استخدم زر "افتَح ملف" لاختيار ملف من جهازك. لسحب وإفلات الملفات استخدم متصفح سطح المكتب.</div>
+
+    <p class="footer-note" style="margin-top:12px">
+      ملاحظة: التحويل بين HTML وDOCX يحاول الاحتفاظ بالمحتوى الشائع (عناوين، قوائم، جداول، صور). المستندات المعقّدة جدًا (تتتبُع التغييرات، رؤوس/تذييلات معقّدة، أنماط مخصصة) قد تفقد بعض التنسيق.
+    </p>
+  </div>
+
+  <script>
+    // Initialize TinyMCE with a Word-like toolbar and mobile-friendly settings.
+    tinymce.init({
+      selector: '#editor',
+      language: 'ar',
+      directionality: 'rtl',
+      height: '60vh',
+      menubar: false,
+      mobile: {
+        theme: 'mobile'
+      },
+      toolbar_sticky: true,
+      plugins: 'table lists link image paste help autolink',
+      toolbar: [
+        'undo redo | bold italic underline strikethrough | fontselect fontsizeselect | forecolor backcolor | alignleft aligncenter alignright | bullist numlist outdent indent | table | image link | removeformat | help'
+      ].join(' '),
+      // font options (web-safe)
+      fontsize_formats: '9px 11px 12px 14px 16px 18px 20px 24px 32px',
+      content_style: "body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 15px; line-height:1.4 }",
+      setup: function(editor) {
+        // Improve paste-from-word behavior
+        editor.on('PastePostProcess', function(e) {
+          // small cleanup can be added here if needed
+        });
+      }
+    });
+
+    // Helpers
+    function showMsg(text) {
+      alert(text);
+    }
+
+    // File open handling
+    const fileInput = document.getElementById('fileInput');
+    fileInput.addEventListener('change', async (evt) => {
+      const f = evt.target.files[0];
+      if(!f) return;
+      const name = (f.name||'').toLowerCase();
+      if(name.endsWith('.docx')){
+        // Use Mammoth to convert .docx -> HTML
+        try {
+          const arrayBuffer = await f.arrayBuffer();
+          const result = await mammoth.convertToHtml({arrayBuffer: arrayBuffer});
+          const html = result.value || '<p></p>';
+          // Set content to editor
+          tinymce.activeEditor.setContent(html);
+          showMsg('تم فتح ملف .docx بنجاح — قد يختلف التنسيق البسيط.');
+        } catch (err) {
+          console.error(err);
+          showMsg('فشل فتح .docx: ' + (err && err.message ? err.message : err));
+        }
+      } else if (name.endsWith('.html') || name.endsWith('.htm')) {
+        const txt = await f.text();
+        tinymce.activeEditor.setContent(txt);
+        showMsg('تم فتح ملف HTML.');
+      } else {
+        const txt = await f.text();
+        // wrap plain text in <pre> to keep formatting
+        tinymce.activeEditor.setContent('<pre>' + escapeHtml(txt) + '</pre>');
+        showMsg('تم فتح ملف نصي.');
+      }
+    });
+
+    // Export HTML
+    document.getElementById('saveHtmlBtn').addEventListener('click', () => {
+      const html = makeFullHtml(tinymce.activeEditor.getContent());
+      const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+      saveAs(blob, 'document.html');
+    });
+
+    // Export DOCX
+    document.getElementById('exportDocxBtn').addEventListener('click', async () => {
+      const inner = tinymce.activeEditor.getContent();
+      const full = makeFullHtml(inner);
+
+      // html-docx-js usage: htmlDocx.asBlob(html)
+      try {
+        // Some builds expose htmlDocx.asBlob
+        if (window.htmlDocx && typeof window.htmlDocx.asBlob === 'function') {
+          const blob = htmlDocx.asBlob(full);
+          saveAs(blob, 'document.docx');
+        } else if (window.htmlDocx && typeof window.htmlDocx === 'function') {
+          // fallback: some cdn builds export a fn that returns arrayBuffer
+          const buf = htmlDocx(full);
+          const blob = new Blob([buf], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+          saveAs(blob, 'document.docx');
+        } else {
+          // Last fallback: attempt to create simple docx-like file using data-hack (less reliable)
+          const blob = new Blob([full], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+          saveAs(blob, 'document.docx');
+        }
+      } catch (err) {
+        console.error(err);
+        showMsg('فشل تصدير DOCX: ' + (err && err.message ? err.message : err));
+      }
+    });
+
+    // Clear
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if(confirm('هل تريد مسح المحتوى وبدء مستند جديد؟')) {
+        tinymce.activeEditor.setContent('<p></p>');
+      }
+    });
+
+    // Help button
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      const txt = [
+        'تعليمات سريعة:',
+        '1) "افتَح ملف" لاختيار مستند .docx أو .html أو .txt من جهازك.',
+        '2) استخدم شريط الأدوات لتنسيق النص، إدراج جداول وصور وروابط.',
+        '3) "تصدير كـ DOCX" سيحاول إنشاء ملف Word قابل للتنزيل.',
+        '',
+        'ملاحظات مهمة:',
+        '- استيراد/تصدير DOCX محليّ يعتمد على مكتبات JavaScript (Mammoth وhtml-docx-js). المستندات المعقدة قد تحتاج تحويل خادمّي للحصول على تطابق كامل.',
+        '- إذا واجهت خطأ قل لي بالرسالة أو أرسل لي نسخة من الملف لأعد اختباره.'
+      ].join('\\n');
+      alert(txt);
+    });
+
+    // Utility: full HTML wrapper for conversion
+    function makeFullHtml(innerHtml) {
+      return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document</title><style>body{font-family:Arial,Helvetica,sans-serif}</style></head><body>' + innerHtml + '</body></html>';
+    }
+
+    // escape helper
+    function escapeHtml(unsafe) {
+      return unsafe.replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+      });
+    }
+
+    // Drag & drop support (desktop)
+    window.addEventListener('dragover', (e)=> e.preventDefault());
+    window.addEventListener('drop', async (e)=> {
+      e.preventDefault();
+      if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        const f = e.dataTransfer.files[0];
+        // set file input and trigger change for reuse of logic
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        fileInput.files = dt.files;
+        fileInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    // Automatically focus editor on load
+    window.addEventListener('load', ()=> {
+      setTimeout(()=> {
+        try { tinymce.activeEditor && tinymce.activeEditor.focus(); } catch(e){}
+      }, 600);
+    });
+  </script>
+</body>
+</html>    <div id="editor" class="editor"></div>
 
     <footer class="info">
       <small>Note: DOCX import/export works best for common document features. Complex styles may lose fidelity.</small>
